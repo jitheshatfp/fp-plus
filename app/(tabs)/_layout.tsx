@@ -61,6 +61,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={24} name="building.2" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="nfc"
+        options={{
+          title: 'Check In',
+          tabBarIcon: ({ color }) => <IconSymbol size={24} name="wave.3.right" color={color} />,
+        }}
+      />
     </Tabs>
   );
 }
