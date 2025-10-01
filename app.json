@@ -8,15 +8,28 @@
     "scheme": "fpplus",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0ea5e9"
+    },
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "com.fitnesspassport.fpplus",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NFCReaderUsageDescription": "We need access to NFC to scan member passes for check-in",
+        "com.apple.developer.nfc.readersession.formats": ["NDEF", "TAG"]
+      }
     },
     "android": {
+      "package": "com.fitnesspassport.fpplus",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "permissions": [
+        "android.permission.NFC"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -28,10 +41,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#0ea5e9"
         }
       ]
     ],

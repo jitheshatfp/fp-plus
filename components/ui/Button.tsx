@@ -47,7 +47,7 @@ export function Button({
         case 'link':
           return { backgroundColor: 'transparent' };
         default:
-          return { backgroundColor: '#0a7ea4' };
+          return { backgroundColor: '#3F5FFB' };
       }
     })();
 
@@ -63,7 +63,7 @@ export function Button({
       case 'ghost':
         return { ...baseStyle, color: '#11181C' };
       case 'link':
-        return { ...baseStyle, color: '#0a7ea4' };
+        return { ...baseStyle, color: '#3F5FFB' };
       default:
         return { ...baseStyle, color: '#ffffff' };
     }
