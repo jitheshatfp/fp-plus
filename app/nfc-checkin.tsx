@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -30,11 +31,10 @@ export default function NFCCheckIn() {
   const [isScanning, setIsScanning] = useState(false);
   const [lastCheckIn, setLastCheckIn] = useState<string | null>(null);
   
-  // User session state
   const [userSession, setUserSession] = useState({
     deviceToken: '',
-    memberBarcode: '26782701', // TODO: Get from your auth system
-    memberName: 'Member Name',  // TODO: Get from your auth system
+    memberBarcode: '26782701',
+    memberName: 'Sarah Blaine',
   });
 
   useEffect(() => {
@@ -49,8 +49,8 @@ export default function NFCCheckIn() {
     const deviceToken = await getOrCreateDeviceToken();
     setUserSession({
       deviceToken: deviceToken,
-      memberBarcode: '26782701', // TODO: Replace with actual logged-in user
-      memberName: 'Member Name',  // TODO: Replace with actual logged-in user
+      memberBarcode: '26782701',
+      memberName: 'Sarah Blaine',
     });
   };
 
@@ -72,16 +72,14 @@ export default function NFCCheckIn() {
     validateOnly: boolean = false
   ): Promise<MemberVisitResponse> => {
     const params = new URLSearchParams({
-      siteToken: siteToken, // Read from NFC tag (facility location)
-      deviceToken: userSession.deviceToken, // User's device identifier
-      barcode: userSession.memberBarcode, // Logged-in member
+      siteToken: siteToken,
+      deviceToken: userSession.deviceToken,
+      barcode: userSession.memberBarcode,
       api: API_CONFIG.apiVersion,
       ...(validateOnly && { validateOnly: 'true' }),
     });
 
     const url = `${API_CONFIG.baseUrl}/memberVisit?${params.toString()}`;
-
-    console.log('API Request URL:', url);
 
     try {
       const response = await fetch(url, {
@@ -103,42 +101,6 @@ export default function NFCCheckIn() {
     }
   };
 
-  const testApiCall = async (testSiteToken: string) => {
-    try {
-      Alert.alert('Testing', 'Testing API with demo site token...');
-      
-      // Test validation
-      const validationResult = await registerMemberVisit(testSiteToken, true);
-      
-      if (validationResult.ERROR) {
-        Alert.alert(
-          'API Test - Access Denied',
-          validationResult.ERRORMESSAGES.join('\n')
-        );
-        return;
-      }
-
-      if (!validationResult.CANACCESS) {
-        Alert.alert(
-          'API Test - Access Denied',
-          'You are not allowed to access this facility'
-        );
-        return;
-      }
-
-      // If validation successful, register the visit
-      const checkInResult = await registerMemberVisit(testSiteToken, false);
-
-      if (checkInResult.CANACCESS && !checkInResult.ERROR) {
-        const message = `API Test Success!\nSite Token: ${testSiteToken.substring(0, 20)}...\nStatus: ${checkInResult.STATUS}`;
-        setLastCheckIn(message);
-        Alert.alert('Success', message);
-      }
-    } catch (error: any) {
-      Alert.alert('API Test Error', error.message);
-    }
-  };
-
   const readNfcTag = async () => {
     if (!isNfcSupported) {
       Alert.alert('Error', 'NFC is not supported on this device');
@@ -148,43 +110,30 @@ export default function NFCCheckIn() {
     setIsScanning(true);
 
     try {
-      // Request NFC technology
       await NfcManager.requestTechnology(NfcTech.Ndef);
-
-      // Read NFC tag
       const tag = await NfcManager.getTag();
-      console.log('NFC Tag detected:', tag);
 
-      // Extract siteToken from NFC tag
       let siteToken = '';
 
       if (tag?.ndefMessage && tag.ndefMessage.length > 0) {
         const ndefRecord = tag.ndefMessage[0];
         const payload = ndefRecord.payload;
         
-        // Convert payload to string
         try {
           siteToken = Ndef.text.decodePayload(new Uint8Array(payload));
         } catch (e) {
-          console.log('Failed to decode as text, trying raw payload');
-          // Fallback: convert bytes to string
           const payloadArray = Array.from(new Uint8Array(payload));
-          // Skip language code byte if present
           const startIndex = payloadArray[0] < 32 ? payloadArray[0] + 1 : 0;
           siteToken = String.fromCharCode.apply(null, payloadArray.slice(startIndex));
         }
       }
 
-      // Clean up any whitespace
       siteToken = siteToken.trim();
 
       if (!siteToken) {
         throw new Error('Could not read site token from NFC tag');
       }
 
-      console.log('Site token extracted:', siteToken);
-
-      // First validate member can access this facility
       const validationResult = await registerMemberVisit(siteToken, true);
 
       if (validationResult.ERROR) {
@@ -205,13 +154,12 @@ export default function NFCCheckIn() {
         return;
       }
 
-      // If validation successful, register the visit
       const checkInResult = await registerMemberVisit(siteToken, false);
 
       if (checkInResult.CANACCESS && !checkInResult.ERROR) {
         const message = `Check-in successful!\nMember: ${userSession.memberName}\nStatus: ${checkInResult.STATUS}`;
         setLastCheckIn(message);
-        Alert.alert('Success', message, [{ text: 'OK' }]);
+        Alert.alert('✓ Checked In', message, [{ text: 'Done' }]);
       } else {
         Alert.alert(
           'Check-in Failed',
@@ -234,77 +182,102 @@ export default function NFCCheckIn() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Fitness Passport</Text>
-        <Text style={styles.subtitle}>Facility Check-in</Text>
-      </View>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.header}>
+          <Text style={styles.greeting}>Welcome,</Text>
+          <Text style={styles.userName}>{userSession.memberName}</Text>
+        </View>
 
-      <View style={styles.content}>
         {!isNfcSupported ? (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>
-              NFC is not supported on this device
-            </Text>
+          <View style={styles.card}>
+            <View style={styles.errorState}>
+              <Text style={styles.errorIcon}>⚠️</Text>
+              <Text style={styles.errorText}>
+                NFC is not supported on this device
+              </Text>
+              <Text style={styles.errorSubtext}>
+                Please use the barcode or QR code method to check in
+              </Text>
+            </View>
           </View>
         ) : (
           <>
-            <View style={styles.memberCard}>
-              <Text style={styles.memberLabel}>Logged in as:</Text>
-              <Text style={styles.memberName}>{userSession.memberName}</Text>
-              <Text style={styles.memberId}>ID: {userSession.memberBarcode}</Text>
-              <Text style={styles.deviceId}>
-                Device: {userSession.deviceToken ? userSession.deviceToken.substring(0, 20) + '...' : 'Loading...'}
-              </Text>
-            </View>
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <View style={styles.iconCircle}>
+                  <Text style={styles.iconText}>📱</Text>
+                </View>
+                <View style={styles.cardHeaderText}>
+                  <Text style={styles.cardTitle}>NFC Check-in</Text>
+                  <Text style={styles.cardSubtitle}>
+                    Quickly scan your NFC tag to check-in
+                  </Text>
+                </View>
+              </View>
 
-            <View style={styles.instructionContainer}>
-              <Text style={styles.instructionText}>
-                {isScanning
-                  ? 'Hold your phone near the facility NFC tag...'
-                  : 'Tap the button and scan the facility NFC tag to check in'}
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              style={[
-                styles.scanButton,
-                isScanning && styles.scanButtonActive,
-              ]}
-              onPress={readNfcTag}
-              disabled={isScanning}
-            >
               {isScanning ? (
-                <ActivityIndicator size="large" color="#ffffff" />
+                <View style={styles.scanningContainer}>
+                  <View style={styles.scanFrame}>
+                    <View style={[styles.corner, styles.topLeft]} />
+                    <View style={[styles.corner, styles.topRight]} />
+                    <View style={[styles.corner, styles.bottomLeft]} />
+                    <View style={[styles.corner, styles.bottomRight]} />
+                    <ActivityIndicator size="large" color="#00BFA5" />
+                  </View>
+                  <Text style={styles.scanningText}>
+                    Point your camera at the NFC tag to check-in
+                  </Text>
+                  <TouchableOpacity 
+                    style={styles.cancelButton}
+                    onPress={() => {
+                      setIsScanning(false);
+                      NfcManager.cancelTechnologyRequest().catch(() => {});
+                    }}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
               ) : (
-                <Text style={styles.scanButtonText}>Scan Facility Tag</Text>
+                <TouchableOpacity 
+                  style={styles.scanButton}
+                  onPress={readNfcTag}
+                >
+                  <Text style={styles.scanButtonText}>Tap to Scan NFC</Text>
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.testButton}
-              onPress={() => testApiCall('8A83EF5E-FE23-F5C3-E45415265FAC5310')}
-            >
-              <Text style={styles.testButtonText}>Test API (Demo)</Text>
-            </TouchableOpacity>
+            </View>
 
             {lastCheckIn && (
-              <View style={styles.resultContainer}>
-                <Text style={styles.resultTitle}>Last Check-in:</Text>
-                <Text style={styles.resultText}>{lastCheckIn}</Text>
+              <View style={styles.successCard}>
+                <View style={styles.successIcon}>
+                  <Text style={styles.checkmark}>✓</Text>
+                </View>
+                <Text style={styles.successTitle}>Checked in successfully!</Text>
+                <Text style={styles.successSubtitle}>{lastCheckIn}</Text>
               </View>
             )}
+
+            <View style={styles.infoCard}>
+              <Text style={styles.infoTitle}>Member Details</Text>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Primary Member ID:</Text>
+                <Text style={styles.infoValue}>{userSession.memberBarcode}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Member type:</Text>
+                <Text style={styles.infoValue}>Adult</Text>
+              </View>
+              <View style={styles.infoDivider} />
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Device ID:</Text>
+                <Text style={styles.infoValueSmall}>
+                  {userSession.deviceToken ? userSession.deviceToken.substring(0, 24) + '...' : 'Loading...'}
+                </Text>
+              </View>
+            </View>
           </>
         )}
-      </View>
-
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          NFC Status: {isNfcSupported ? '✓ Supported' : '✗ Not Supported'}
-        </Text>
-        <Text style={styles.footerTextSmall}>
-          Platform: {Platform.OS} | Version: 1.0.0
-        </Text>
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -312,159 +285,244 @@ export default function NFCCheckIn() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F5F5F5',
   },
-  header: {
-    backgroundColor: '#0ea5e9',
+  scrollContent: {
     padding: 20,
     paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    alignItems: 'center',
   },
-  title: {
+  header: {
+    marginBottom: 24,
+  },
+  greeting: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 4,
+  },
+  userName: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 5,
+    color: '#1A1A1A',
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#ffffff',
-    opacity: 0.9,
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  content: {
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#E0F7F4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  iconText: {
+    fontSize: 24,
+  },
+  cardHeaderText: {
     flex: 1,
-    padding: 20,
-    justifyContent: 'center',
   },
-  memberCard: {
-    backgroundColor: '#ffffff',
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: '#0ea5e9',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  memberLabel: {
-    fontSize: 12,
-    color: '#6b7280',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 5,
-  },
-  memberName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 5,
-  },
-  memberId: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 3,
-  },
-  deviceId: {
-    fontSize: 12,
-    color: '#9ca3af',
-  },
-  instructionContainer: {
-    backgroundColor: '#ffffff',
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  instructionText: {
-    fontSize: 16,
-    textAlign: 'center',
-    color: '#374151',
-    lineHeight: 24,
-  },
-  scanButton: {
-    backgroundColor: '#0ea5e9',
-    padding: 20,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 80,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 5,
-  },
-  scanButtonActive: {
-    backgroundColor: '#0284c7',
-  },
-  scanButtonText: {
+  cardTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  testButton: {
-    backgroundColor: '#6b7280',
-    padding: 15,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 15,
-  },
-  testButtonText: {
-    fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#1A1A1A',
+    marginBottom: 4,
   },
-  resultContainer: {
-    backgroundColor: '#d1fae5',
-    padding: 20,
-    borderRadius: 12,
-    marginTop: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: '#10b981',
-  },
-  resultTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#065f46',
-    marginBottom: 8,
-  },
-  resultText: {
+  cardSubtitle: {
     fontSize: 14,
-    color: '#047857',
+    color: '#666',
     lineHeight: 20,
   },
-  errorContainer: {
-    backgroundColor: '#fee2e2',
-    padding: 20,
+  scanningContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  scanFrame: {
+    width: 200,
+    height: 200,
+    backgroundColor: '#000',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    marginBottom: 20,
+  },
+  corner: {
+    position: 'absolute',
+    width: 40,
+    height: 40,
+    borderColor: '#00BFA5',
+    borderWidth: 3,
+  },
+  topLeft: {
+    top: 10,
+    left: 10,
+    borderRightWidth: 0,
+    borderBottomWidth: 0,
+    borderTopLeftRadius: 8,
+  },
+  topRight: {
+    top: 10,
+    right: 10,
+    borderLeftWidth: 0,
+    borderBottomWidth: 0,
+    borderTopRightRadius: 8,
+  },
+  bottomLeft: {
+    bottom: 10,
+    left: 10,
+    borderRightWidth: 0,
+    borderTopWidth: 0,
+    borderBottomLeftRadius: 8,
+  },
+  bottomRight: {
+    bottom: 10,
+    right: 10,
+    borderLeftWidth: 0,
+    borderTopWidth: 0,
+    borderBottomRightRadius: 8,
+  },
+  scanningText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 20,
+  },
+  cancelButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#DDD',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
+  },
+  scanButton: {
+    backgroundColor: '#00BFA5',
+    paddingVertical: 16,
     borderRadius: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#ef4444',
+    alignItems: 'center',
+  },
+  scanButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  successCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  successIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#00BFA5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  checkmark: {
+    fontSize: 32,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  successTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1A1A1A',
+    marginBottom: 8,
+  },
+  successSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+  infoCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 16,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  infoValueSmall: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#666',
+    maxWidth: 180,
+  },
+  infoDivider: {
+    height: 1,
+    backgroundColor: '#E5E5E5',
+    marginVertical: 12,
+  },
+  errorState: {
+    alignItems: 'center',
+    paddingVertical: 30,
+  },
+  errorIcon: {
+    fontSize: 48,
+    marginBottom: 16,
   },
   errorText: {
     fontSize: 16,
-    color: '#991b1b',
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 8,
     textAlign: 'center',
   },
-  footer: {
-    padding: 20,
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-  },
-  footerText: {
+  errorSubtext: {
     fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 5,
-  },
-  footerTextSmall: {
-    fontSize: 12,
-    color: '#9ca3af',
+    color: '#666',
+    textAlign: 'center',
+    paddingHorizontal: 20,
   },
 });

@@ -5,7 +5,6 @@ import { Platform } from 'react-native';
 import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import TabBarBackground from '@/components/ui/TabBarBackground';
-import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function TabLayout() {
@@ -14,13 +13,12 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: '#00BFA5',
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarBackground: TabBarBackground,
         tabBarStyle: Platform.select({
           ios: {
-            // Use a transparent background on iOS to show the blur effect
             position: 'absolute',
           },
           default: {},
@@ -55,17 +53,17 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="facilities"
+        name="nfc"
         options={{
-          title: 'Facilities',
-          tabBarIcon: ({ color }) => <IconSymbol size={24} name="building.2" color={color} />,
+          title: 'NFC Scan',
+          tabBarIcon: ({ color }) => <IconSymbol size={24} name="wave.3.right" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="nfc"
+        name="facilities"
         options={{
-          title: 'Check In',
-          tabBarIcon: ({ color }) => <IconSymbol size={24} name="wave.3.right" color={color} />,
+          title: 'Check-in',
+          tabBarIcon: ({ color }) => <IconSymbol size={24} name="building.2" color={color} />,
         }}
       />
     </Tabs>
