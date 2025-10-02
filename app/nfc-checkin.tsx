@@ -9,20 +9,13 @@ import {
   View,
 } from 'react-native';
 import NfcManager, { Ndef, NfcTech } from 'react-native-nfc-manager';
+import { getOrCreateDeviceToken } from './utils/deviceToken';
 
 // API Configuration
 const API_CONFIG = {
   baseUrl: 'https://fitservice.fitnesspassport.com.au',
   apiVersion: 'v2',
 };
-
-// // TODO: Replace with actual device token and member data from your auth system
-// // These should be retrieved when user logs in and stored securely
-// const USER_SESSION = {
-//   deviceToken: 'YOUR_DEVICE_TOKEN_HERE', // Unique to this user's device
-//   memberBarcode: '26782701', // Logged-in member's barcode
-//   memberName: 'Member Name', // Logged-in member's name
-// };
 
 interface MemberVisitResponse {
   CANACCESS: boolean;
@@ -36,13 +29,30 @@ export default function NFCCheckIn() {
   const [isNfcSupported, setIsNfcSupported] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [lastCheckIn, setLastCheckIn] = useState<string | null>(null);
+  
+  // User session state
+  const [userSession, setUserSession] = useState({
+    deviceToken: '',
+    memberBarcode: '26782701', // TODO: Get from your auth system
+    memberName: 'Member Name',  // TODO: Get from your auth system
+  });
 
   useEffect(() => {
     checkNfcSupport();
+    loadUserSession();
     return () => {
       NfcManager.cancelTechnologyRequest().catch(() => {});
     };
   }, []);
+
+  const loadUserSession = async () => {
+    const deviceToken = await getOrCreateDeviceToken();
+    setUserSession({
+      deviceToken: deviceToken,
+      memberBarcode: '26782701', // TODO: Replace with actual logged-in user
+      memberName: 'Member Name',  // TODO: Replace with actual logged-in user
+    });
+  };
 
   const checkNfcSupport = async () => {
     try {
@@ -63,8 +73,8 @@ export default function NFCCheckIn() {
   ): Promise<MemberVisitResponse> => {
     const params = new URLSearchParams({
       siteToken: siteToken, // Read from NFC tag (facility location)
-      deviceToken: USER_SESSION.deviceToken, // User's device identifier
-      barcode: USER_SESSION.memberBarcode, // Logged-in member
+      deviceToken: userSession.deviceToken, // User's device identifier
+      barcode: userSession.memberBarcode, // Logged-in member
       api: API_CONFIG.apiVersion,
       ...(validateOnly && { validateOnly: 'true' }),
     });
@@ -199,7 +209,7 @@ export default function NFCCheckIn() {
       const checkInResult = await registerMemberVisit(siteToken, false);
 
       if (checkInResult.CANACCESS && !checkInResult.ERROR) {
-        const message = `Check-in successful!\nMember: ${USER_SESSION.memberName}\nStatus: ${checkInResult.STATUS}`;
+        const message = `Check-in successful!\nMember: ${userSession.memberName}\nStatus: ${checkInResult.STATUS}`;
         setLastCheckIn(message);
         Alert.alert('Success', message, [{ text: 'OK' }]);
       } else {
@@ -240,9 +250,11 @@ export default function NFCCheckIn() {
           <>
             <View style={styles.memberCard}>
               <Text style={styles.memberLabel}>Logged in as:</Text>
-              <Text style={styles.memberName}>{USER_SESSION.memberName}</Text>
-              <Text style={styles.memberId}>ID: {USER_SESSION.memberBarcode}</Text>
-              <Text style={styles.deviceId}>Device: {USER_SESSION.deviceToken.substring(0, 20)}...</Text>
+              <Text style={styles.memberName}>{userSession.memberName}</Text>
+              <Text style={styles.memberId}>ID: {userSession.memberBarcode}</Text>
+              <Text style={styles.deviceId}>
+                Device: {userSession.deviceToken ? userSession.deviceToken.substring(0, 20) + '...' : 'Loading...'}
+              </Text>
             </View>
 
             <View style={styles.instructionContainer}>
